@@ -1,7 +1,7 @@
+use captis::*;
 use std::env;
 
 fn main() {
-    use captis::*;
     let mut args = env::args();
     args.next().unwrap();
     let capturer = init_capturer().unwrap();
@@ -10,7 +10,7 @@ fn main() {
         let num: usize = num.parse().unwrap();
         let now = std::time::Instant::now();
         let image = capturer.capture(num).unwrap();
-        println!("Elapsed: {}, Captured: {}", now.elapsed().as_millis());
+        println!("Elapsed: {}, Captured: {}", now.elapsed().as_millis(), num);
         image.save(format!("{}.bmp", num)).unwrap();
     }
 }

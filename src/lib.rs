@@ -17,19 +17,20 @@ pub struct Display {
 }
 
 #[cfg(target_os = "windows")]
-pub use windows::*;
-
-#[cfg(target_os = "windows")]
+/// Initializes a struct that implements [`Capturer`].
 pub fn init_capturer() -> Option<impl Capturer> {
+    use windows::*;
     WindowsCapturer::new()
 }
 
 #[cfg(target_os = "macos")]
+/// Initializes a struct that implements [`Capturer`].
 pub fn init_capturer() -> Option<impl Capturer> {
-    todo!()
+    None
 }
 
 #[cfg(target_os = "linux")]
+/// Initializes a struct that implements [`Capturer`].
 pub fn init_capturer() -> Option<impl Capturer> {
-    todo!()
+    None
 }
