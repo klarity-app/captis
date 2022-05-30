@@ -11,6 +11,5 @@ fn main() {
         let now = std::time::Instant::now();
         let image = capturer.capture(num).unwrap();
         println!("Elapsed: {}, Captured: {}", now.elapsed().as_millis(), num);
-        image.save(format!("{}.bmp", num)).unwrap();
     }
 }
