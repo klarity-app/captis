@@ -10,6 +10,7 @@ homepage = "https://github.com/Selyatin/captis"
 license = "MIT"
 keywords = ["screen", "capture"]
 categories = ["computer-vision", "multimedia::images"]
+documentation = "https://docs.rs/captis"
 
 [dependencies]
 image = { version = "0.24.2", default-features = false, features = ["bmp"]}
