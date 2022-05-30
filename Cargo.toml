@@ -1,9 +1,15 @@
 [package]
 name = "captis"
 version = "0.1.0"
+rust-version = "1.56"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["selyatinismet@gmail.com"]
+description = "A Screen capturing library built for Linux, Windows and MacOS."
+readme = "README.md"
+homepage = "https://github.com/Selyatin/captis"
+license = "MIT"
+keywords = ["screen", "capture"]
+categories = ["computer-vision", "multimedia::images"]
 
 [dependencies]
 image = { version = "0.24.2", default-features = false, features = ["bmp"]}
