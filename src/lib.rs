@@ -22,15 +22,3 @@ pub fn init_capturer() -> Option<impl Capturer> {
     use windows::*;
     WindowsCapturer::new()
 }
-
-#[cfg(target_os = "macos")]
-/// Initializes a struct that implements [`Capturer`].
-pub fn init_capturer() -> Option<impl Capturer> {
-    None
-}
-
-#[cfg(target_os = "linux")]
-/// Initializes a struct that implements [`Capturer`].
-pub fn init_capturer() -> Option<impl Capturer> {
-    None
-}
