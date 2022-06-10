@@ -39,6 +39,16 @@ impl Capturer for WindowsCapturer {
         &self.displays
     }
 
+    fn capture_all(&self) -> Vec<RgbImage> {
+        let mut vec = Vec::with_capacity(self.displays.len());
+        for i in 0..self.displays.len() {
+            if let Some(image) = self.capture(i) {
+                vec.push(image);
+            }
+        }
+        vec
+    }
+
     fn capture(&self, index: usize) -> Option<RgbImage> {
         let h_dc = self.h_dc;
 

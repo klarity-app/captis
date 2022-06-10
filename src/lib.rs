@@ -5,6 +5,7 @@ use image::RgbImage;
 
 pub trait Capturer {
     fn capture(&self, index: usize) -> Option<RgbImage>;
+    fn capture_all(&self) -> Vec<RgbImage>;
     fn displays(&self) -> &[Display];
 }
 
