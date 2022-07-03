@@ -4,7 +4,7 @@ It's a fairly simple library that performs _good enough_, the OS level APIs that
 
 ## Usage
 
-To run this code you also need to add [image](https://lib.rs/image) crate to your project and enable the **jpeg** feature, otherwise you won't be able to save the file as jpeg.
+To run this code you also need to add [image](https://lib.rs/image) crate to your project and enable the **jpeg** feature, otherwise you won't be able to save the file as **JPEG**.
 
 The same goes for any other format as well, if you wanna treat the image as **PNG** you must enable **png** feature. Check their [documentation](https://docs.rs/image/latest/image/enum.ImageFormat.html) to see which formats are available.
 
