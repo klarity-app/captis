@@ -2,13 +2,13 @@
 mod windows;
 
 #[cfg(target_os = "windows")]
-type Error = windows::WindowsError;
+pub type Error = windows::WindowsError;
 
 #[cfg(target_os = "linux")]
 mod linux;
 
 #[cfg(target_os = "linux")]
-type Error = x11rb::errors::ConnectionError;
+pub type Error = x11rb::errors::ConnectionError;
 
 pub use image::RgbImage;
 
