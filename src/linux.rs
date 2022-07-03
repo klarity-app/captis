@@ -2,7 +2,10 @@
 
 use super::*;
 
-use std::io::{Error, ErrorKind};
+use std::{
+    io::{Error, ErrorKind},
+    marker::PhantomData,
+};
 use x11rb::{
     connection::Connection,
     errors::ConnectionError,
@@ -28,6 +31,7 @@ pub(crate) struct X11Capturer {
     screen: u32,
     connection: RustConnection,
     displays: Vec<Display>,
+    _phantom_data: PhantomData<*const ()>,
 }
 
 impl X11Capturer {
@@ -38,6 +42,7 @@ impl X11Capturer {
             screen: connection.setup().roots.first().unwrap().root,
             displays: get_displays(&connection)?,
             connection,
+            _phantom_data: PhantomData,
         })
     }
 }

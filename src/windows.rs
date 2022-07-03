@@ -2,7 +2,7 @@
 
 use super::{Capturer, Display};
 use image::{Rgb, RgbImage};
-use std::{error::Error, fmt, mem, ptr};
+use std::{error::Error, fmt, marker::PhantomData, mem, ptr};
 use winapi::{
     shared::{
         minwindef::{BOOL, LPARAM, TRUE},
@@ -45,6 +45,7 @@ pub(crate) struct WindowsCapturer {
     h_compatible_dc: HDC,
     displays: Vec<Display>,
     bits_per_pixel: u16,
+    _phantom_data: PhantomData<*const ()>,
 }
 
 impl Drop for WindowsCapturer {
@@ -201,6 +202,7 @@ impl WindowsCapturer {
                 h_compatible_dc,
                 displays,
                 bits_per_pixel,
+                _phantom_data: PhantomData,
             })
         }
     }

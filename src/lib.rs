@@ -39,7 +39,6 @@ impl Display {
 }
 
 #[cfg(target_os = "windows")]
-/// Initializes a struct that implements [`Capturer`].
 pub fn init_capturer() -> Result<impl Capturer, Error> {
     use windows::*;
     Ok(WindowsCapturer::new()?)
