@@ -2,8 +2,7 @@ use captis::*;
 use std::env;
 
 fn main() {
-    #[cfg(target_os = "windows")]
-    {
+    if cfg!(target_os = "windows") || cfg!(target_os = "linux") {
         let mut args = env::args();
         args.next().unwrap();
         let capturer = init_capturer().unwrap();
@@ -12,6 +11,7 @@ fn main() {
             let num: usize = num.parse().unwrap();
             let now = std::time::Instant::now();
             let image = capturer.capture(num).unwrap();
+            image.save(format!("test-{}.jpeg", num)).unwrap();
             println!("Elapsed: {}, Captured: {}", now.elapsed().as_millis(), num);
         }
     }

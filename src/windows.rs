@@ -2,7 +2,7 @@
 
 use super::{Capturer, Display};
 use image::{Rgb, RgbImage};
-use std::{mem, ptr};
+use std::{error::Error, fmt, mem, ptr};
 use winapi::{
     shared::{
         minwindef::{BOOL, LPARAM, TRUE},
@@ -18,7 +18,29 @@ use winapi::{
     },
 };
 
-pub struct WindowsCapturer {
+#[derive(Debug, Copy, Clone)]
+pub enum WindowsError {
+    CouldntEnumDisplayMonitors,
+    CouldntGetWindowDC,
+    CouldntCreateCompatibleDC,
+    CouldntGetDeviceCaps,
+    CouldntFindAnyDisplays,
+    CouldntFindDisplay,
+    CreateDIBSectionFailed,
+    SelectObjectFailed,
+    BitBltFailed,
+    DeleteObjectFailed,
+}
+
+impl fmt::Display for WindowsError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for WindowsError {}
+
+pub(crate) struct WindowsCapturer {
     h_dc: HDC,
     h_compatible_dc: HDC,
     displays: Vec<Display>,
@@ -39,17 +61,17 @@ impl Capturer for WindowsCapturer {
         &self.displays
     }
 
-    fn capture_all(&self) -> Vec<RgbImage> {
+    fn capture_all(&self) -> Result<Vec<RgbImage>, WindowsError> {
         let mut vec = Vec::with_capacity(self.displays.len());
         for i in 0..self.displays.len() {
-            if let Some(image) = self.capture(i) {
-                vec.push(image);
-            }
+            vec.push(self.capture(i)?);
         }
-        vec
+        Ok(vec)
     }
 
-    fn capture(&self, index: usize) -> Option<RgbImage> {
+    fn capture(&self, index: usize) -> Result<RgbImage, WindowsError> {
+        use WindowsError::*;
+
         let h_dc = self.h_dc;
 
         let h_compatible_dc = self.h_compatible_dc;
@@ -59,7 +81,7 @@ impl Capturer for WindowsCapturer {
             height,
             top,
             left,
-        } = *self.displays.get(index)?;
+        } = *self.displays.get(index).ok_or(CouldntFindDisplay)?;
 
         unsafe {
             let bitmap_info = BITMAPINFO {
@@ -86,9 +108,15 @@ impl Capturer for WindowsCapturer {
                 0,
             );
 
-            SelectObject(h_compatible_dc as _, compatible_bitmap as _);
+            if compatible_bitmap.is_null() {
+                return Err(CreateDIBSectionFailed);
+            }
 
-            BitBlt(
+            if SelectObject(h_compatible_dc as _, compatible_bitmap as _).is_null() {
+                return Err(SelectObjectFailed);
+            }
+
+            if BitBlt(
                 h_compatible_dc,
                 0,
                 0,
@@ -98,7 +126,10 @@ impl Capturer for WindowsCapturer {
                 left,
                 top,
                 SRCCOPY | CAPTUREBLT,
-            );
+            ) == 0
+            {
+                return Err(BitBltFailed);
+            }
 
             let slice = std::slice::from_raw_parts(data as *mut RGBQUAD, (width * height) as usize);
 
@@ -121,28 +152,32 @@ impl Capturer for WindowsCapturer {
                 }
             }
 
-            DeleteObject(compatible_bitmap as _);
+            if DeleteObject(compatible_bitmap as _) == 0 {
+                return Err(DeleteObjectFailed);
+            }
 
-            Some(image)
+            Ok(image)
         }
     }
 }
 
 impl WindowsCapturer {
-    pub fn new() -> Option<Self> {
+    pub(crate) fn new() -> Result<Self, WindowsError> {
+        use WindowsError::*;
+
         unsafe {
             let mut displays: Vec<Display> = vec![];
 
             let h_dc = GetWindowDC(ptr::null_mut());
 
             if h_dc.is_null() {
-                return None;
+                return Err(CouldntGetWindowDC);
             }
 
             let h_compatible_dc = CreateCompatibleDC(h_dc);
 
             if h_compatible_dc.is_null() {
-                return None;
+                return Err(CouldntCreateCompatibleDC);
             }
 
             let bits_per_pixel = GetDeviceCaps(h_dc, BITSPIXEL) as u16;
@@ -154,14 +189,14 @@ impl WindowsCapturer {
                 (&mut displays as *mut _) as _,
             ) == 0
             {
-                return None;
+                return Err(CouldntEnumDisplayMonitors);
             }
 
             if displays.is_empty() {
-                return None;
+                return Err(CouldntFindAnyDisplays);
             }
 
-            Some(Self {
+            Ok(Self {
                 h_dc,
                 h_compatible_dc,
                 displays,

@@ -1,15 +1,27 @@
 #[cfg(target_os = "windows")]
 mod windows;
 
-use image::RgbImage;
+#[cfg(target_os = "windows")]
+type Error = windows::WindowsError;
+
+#[cfg(target_os = "linux")]
+mod linux;
+
+#[cfg(target_os = "linux")]
+type Error = x11rb::errors::ConnectionError;
+
+pub use image::RgbImage;
 
 pub trait Capturer {
-    fn capture(&self, index: usize) -> Option<RgbImage>;
-    fn capture_all(&self) -> Vec<RgbImage>;
+    /// Returns a single image from the selected display.
+    fn capture(&self, index: usize) -> Result<RgbImage, Error>;
+    /// Captures a single image from all the displays available and returns them.
+    fn capture_all(&self) -> Result<Vec<RgbImage>, Error>;
+    /// Returns a reference to the currently available displays.
     fn displays(&self) -> &[Display];
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct Display {
     top: i32,
     left: i32,
@@ -17,9 +29,24 @@ pub struct Display {
     height: i32,
 }
 
+impl Display {
+    pub fn width(&self) -> i32 {
+        self.width
+    }
+    pub fn height(&self) -> i32 {
+        self.height
+    }
+}
+
 #[cfg(target_os = "windows")]
 /// Initializes a struct that implements [`Capturer`].
-pub fn init_capturer() -> Option<impl Capturer> {
+pub fn init_capturer() -> Result<impl Capturer, Error> {
     use windows::*;
-    WindowsCapturer::new()
+    Ok(WindowsCapturer::new()?)
+}
+
+#[cfg(target_os = "linux")]
+pub fn init_capturer() -> Result<impl Capturer, Error> {
+    use linux::*;
+    Ok(X11Capturer::new()?)
 }
