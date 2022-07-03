@@ -10,7 +10,8 @@ use x11rb::{
     connection::Connection,
     errors::ConnectionError,
     protocol::{
-        randr::ConnectionExt,
+        randr::{self, ConnectionExt},
+        shm::{self, SegWrapper},
         xproto::{ConnectionExt as XProtoConnectionExt, ImageFormat},
     },
     rust_connection::RustConnection,
@@ -31,12 +32,23 @@ pub(crate) struct X11Capturer {
     screen: u32,
     connection: RustConnection,
     displays: Vec<Display>,
+
     _phantom_data: PhantomData<*const ()>,
 }
 
 impl X11Capturer {
     pub(crate) fn new() -> Result<X11Capturer, ConnectionError> {
         let (connection, _count) = x11rb::connect(None).or(Err(ConnectionError::UnknownError))?;
+
+        if connection
+            .extension_information(randr::X11_EXTENSION_NAME)?
+            .is_none()
+        {
+            return Err(ConnectionError::IoError(Error::new(
+                ErrorKind::NotFound,
+                "Couldn't find XRANDR Extension",
+            )));
+        }
 
         Ok(X11Capturer {
             screen: connection.setup().roots.first().unwrap().root,
