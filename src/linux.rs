@@ -46,10 +46,7 @@ impl X11Capturer {
             .extension_information(randr::X11_EXTENSION_NAME)?
             .is_none()
         {
-            return Err(ConnectionError::IoError(Error::new(
-                ErrorKind::NotFound,
-                "Couldn't find XRANDR Extension",
-            )));
+            return Err(ConnectionError::UnsupportedExtension);
         }
 
         let (seg, shm_id, shm_addr) = if connection
