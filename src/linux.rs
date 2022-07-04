@@ -5,7 +5,6 @@ use super::*;
 use libc::{shmat, shmctl, shmdt, shmget, IPC_CREAT, IPC_PRIVATE, IPC_RMID, SHM_RDONLY};
 use std::{
     io::{Error, ErrorKind},
-    marker::PhantomData,
     mem, ptr,
 };
 use x11rb::{
@@ -13,8 +12,8 @@ use x11rb::{
     errors::ConnectionError,
     protocol::{
         randr::{self, ConnectionExt},
-        shm::{self, ConnectionExt as XShmConnectionExt, SegWrapper},
-        xproto::{ConnectionExt as XProtoConnectionExt, ImageFormat, PixmapWrapper},
+        shm::{self, ConnectionExt as XShmConnectionExt},
+        xproto::{ConnectionExt as XProtoConnectionExt, ImageFormat},
     },
     rust_connection::RustConnection,
 };
@@ -65,8 +64,8 @@ impl X11Capturer {
                 Ok(seg) => unsafe {
                     let shm_id = shmget(
                         IPC_PRIVATE,
-                        ((screen.width_in_pixels as usize * screen.height_in_pixels as usize)
-                            * mem::size_of::<Bgr>()),
+                        (screen.width_in_pixels as usize * screen.height_in_pixels as usize)
+                            * mem::size_of::<Bgr>(),
                         IPC_CREAT | 0o777,
                     );
 
