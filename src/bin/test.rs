@@ -10,9 +10,14 @@ fn main() {
         while let Some(num) = args.next() {
             let num: usize = num.parse().unwrap();
             let now = std::time::Instant::now();
+            for _ in 0..60 {
+                capturer.capture(num).unwrap();
+            }
             let image = capturer.capture(num).unwrap();
-            image.save(format!("test-{}.jpeg", num)).unwrap();
-            println!("Elapsed: {}, Captured: {}", now.elapsed().as_millis(), num);
+            println!("Captures 60 frames in {}ms", now.elapsed().as_millis(),);
+            let name = format!("test-{}.jpg", num);
+            image.save(&name).unwrap();
+            println!("Saved {}", name);
         }
     }
 }

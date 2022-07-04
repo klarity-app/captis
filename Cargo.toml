@@ -8,7 +8,7 @@ description = "A Screen capturing library built for Linux, Windows and MacOS."
 readme = "README.md"
 homepage = "https://github.com/crewnew/captis"
 license = "MIT"
-keywords = ["screen", "capture"]
+keywords = ["screen", "capture", "screenshot"]
 categories = ["computer-vision", "multimedia::images"]
 documentation = "https://docs.rs/captis"
 
@@ -19,7 +19,8 @@ image = { version = "0.24.2", default-features = false}
 winapi = {version = "0.3.9", features = ["std", "winuser", "windef", "minwindef", "wingdi"]}
 
 [target.'cfg(target_os = "linux")'.dependencies]
-x11rb = { version = "0.10.0", features = ["randr"]}
+x11rb = { version = "0.10.0", features = ["randr", "shm"]}
+libc = "0.2.126"
 
 [profile.release]
 lto = "fat"

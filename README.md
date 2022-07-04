@@ -2,6 +2,12 @@
 
 It's a fairly simple library that performs _good enough_, the OS level APIs that were used are inspired by [python-mss](https://github.com/BoboTiG/python-mss).
 
+## Specification
+
+- **Windows** uses the [Windows GDI](https://docs.microsoft.com/en-us/windows/win32/gdi/windows-gdi] API.
+- **Linux X11** uses the `RandR` extension to get information about the displays, for capturing the [XShm](https://www.x.org/releases/X11R7.6/doc/man/man3/XShm.3.xhtml) extension is used if available, otherwise the standard protocol is used.
+- **MacOS** _Coming soon..._
+
 ## Usage
 
 To run this code you also need to add [image](https://lib.rs/image) crate to your project and enable the **jpeg** feature, otherwise you won't be able to save the file as **JPEG**.

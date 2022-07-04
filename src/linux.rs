@@ -2,17 +2,19 @@
 
 use super::*;
 
+use libc::{shmat, shmctl, shmdt, shmget, IPC_CREAT, IPC_PRIVATE, IPC_RMID, SHM_RDONLY};
 use std::{
     io::{Error, ErrorKind},
     marker::PhantomData,
+    mem, ptr,
 };
 use x11rb::{
-    connection::Connection,
+    connection::{Connection, RequestConnection},
     errors::ConnectionError,
     protocol::{
         randr::{self, ConnectionExt},
-        shm::{self, SegWrapper},
-        xproto::{ConnectionExt as XProtoConnectionExt, ImageFormat},
+        shm::{self, ConnectionExt as XShmConnectionExt, SegWrapper},
+        xproto::{ConnectionExt as XProtoConnectionExt, ImageFormat, PixmapWrapper},
     },
     rust_connection::RustConnection,
 };
@@ -29,16 +31,17 @@ struct Bgr {
 }
 
 pub(crate) struct X11Capturer {
-    screen: u32,
+    screen: usize,
     connection: RustConnection,
     displays: Vec<Display>,
-
-    _phantom_data: PhantomData<*const ()>,
+    shm_addr: *const u8,
+    shm_id: Option<i32>,
+    seg: Option<u32>,
 }
 
 impl X11Capturer {
     pub(crate) fn new() -> Result<X11Capturer, ConnectionError> {
-        let (connection, _count) = x11rb::connect(None).or(Err(ConnectionError::UnknownError))?;
+        let (connection, screen) = x11rb::connect(None).or(Err(ConnectionError::UnknownError))?;
 
         if connection
             .extension_information(randr::X11_EXTENSION_NAME)?
@@ -50,17 +53,53 @@ impl X11Capturer {
             )));
         }
 
+        let (seg, shm_id, shm_addr) = if connection
+            .extension_information(shm::X11_EXTENSION_NAME)?
+            .is_some()
+        {
+            (None, None, ptr::null())
+        } else {
+            let screen = &connection.setup().roots[screen];
+
+            match connection.generate_id() {
+                Ok(seg) => unsafe {
+                    let shm_id = shmget(
+                        IPC_PRIVATE,
+                        ((screen.width_in_pixels as usize * screen.height_in_pixels as usize)
+                            * mem::size_of::<Bgr>()),
+                        IPC_CREAT | 0o777,
+                    );
+
+                    if shm_id < 0 {
+                        return Err(ConnectionError::IoError(Error::last_os_error()));
+                    }
+
+                    let shm_addr = shmat(shm_id, ptr::null(), SHM_RDONLY);
+
+                    if (shm_addr as isize) < 0 {
+                        return Err(ConnectionError::IoError(Error::last_os_error()));
+                    }
+
+                    connection.shm_attach(seg, shm_id as u32, false)?;
+
+                    (Some(seg), Some(shm_id), shm_addr as *const u8)
+                },
+                Err(_) => (None, None, ptr::null()),
+            }
+        };
+
         Ok(X11Capturer {
-            screen: connection.setup().roots.first().unwrap().root,
-            displays: get_displays(&connection)?,
+            screen,
+            displays: get_displays(&connection, screen)?,
             connection,
-            _phantom_data: PhantomData,
+            shm_addr,
+            shm_id,
+            seg,
         })
     }
-}
 
-impl Capturer for X11Capturer {
-    fn capture(&self, index: usize) -> Result<RgbImage, ConnectionError> {
+    /// Captures the screen using standard protocols, which are a lot less inefficient.
+    fn capture_standard(&self, index: usize) -> Result<RgbImage, ConnectionError> {
         let display = self.displays.get(index).ok_or_else(|| {
             ConnectionError::IoError(Error::new(
                 ErrorKind::NotFound,
@@ -68,11 +107,15 @@ impl Capturer for X11Capturer {
             ))
         })?;
 
+        let screen = &self.connection.setup().roots[self.screen];
+
+        let root = screen.root;
+
         let x11_image = self
             .connection
             .get_image(
                 ImageFormat::Z_PIXMAP,
-                self.screen,
+                root,
                 display.left as i16,
                 display.top as i16,
                 display.width as u16,
@@ -83,20 +126,75 @@ impl Capturer for X11Capturer {
             .ok_or(ConnectionError::UnknownError)?;
 
         let data: &[Bgr] = unsafe {
-            std::slice::from_raw_parts(x11_image.data.as_ptr() as *const Bgr, x11_image.data.len())
+            std::slice::from_raw_parts(x11_image.data.as_ptr() as _, x11_image.data.len())
         };
 
-        let (width, height) = (display.width as u32, display.height as u32);
+        Ok(bgr_to_rgb_image(
+            data,
+            display.width as u32,
+            display.height as u32,
+        ))
+    }
 
-        let mut image = RgbImage::new(width, height);
+    /// Captures the screen using the XShm protocol and shared memory causing the program to run
+    /// hella lot faster.
+    fn capture_shm(&self, index: usize) -> Result<RgbImage, ConnectionError> {
+        let display = self.displays.get(index).ok_or_else(|| {
+            ConnectionError::IoError(Error::new(
+                ErrorKind::NotFound,
+                "Couldn't find specified Display",
+            ))
+        })?;
 
-        let mut i = 0;
+        let screen = &self.connection.setup().roots[self.screen];
 
-        for image_pixel in image.pixels_mut() {
-            let pixel = data[i];
-            image_pixel.0 = [pixel.r, pixel.g, pixel.b];
-            i += 1;
+        let root = screen.root;
+
+        let reply = self
+            .connection
+            .shm_get_image(
+                root,
+                display.left as i16,
+                display.top as i16,
+                display.width as u16,
+                display.height as u16,
+                PLANE_MASK,
+                ImageFormat::Z_PIXMAP.into(),
+                unsafe { self.seg.unwrap_unchecked() },
+                0,
+            )?
+            .reply_unchecked()?
+            .ok_or(ConnectionError::UnknownError)?;
+
+        let data: &[Bgr] =
+            unsafe { std::slice::from_raw_parts(self.shm_addr as _, reply.size as usize) };
+
+        Ok(bgr_to_rgb_image(
+            data,
+            display.width as u32,
+            display.height as u32,
+        ))
+    }
+}
+
+impl Drop for X11Capturer {
+    fn drop(&mut self) {
+        if let Some(seg) = self.seg {
+            self.connection.shm_detach(seg).ok();
+            unsafe {
+                shmdt(self.shm_addr as _);
+                shmctl(self.shm_id.unwrap(), IPC_RMID, ptr::null_mut());
+            }
         }
+    }
+}
+
+impl Capturer for X11Capturer {
+    fn capture(&self, index: usize) -> Result<RgbImage, ConnectionError> {
+        let image = match self.seg {
+            Some(_) => self.capture_shm(index)?,
+            None => self.capture_standard(index)?,
+        };
 
         Ok(image)
     }
@@ -114,52 +212,62 @@ impl Capturer for X11Capturer {
     }
 }
 
-fn get_displays(connection: &RustConnection) -> Result<Vec<Display>, ConnectionError> {
-    let screens = &connection.setup().roots;
+fn bgr_to_rgb_image(data: &[Bgr], width: u32, height: u32) -> RgbImage {
+    let mut image = RgbImage::new(width, height);
+
+    let mut i = 0;
+
+    for image_pixel in image.pixels_mut() {
+        let pixel = data[i];
+        image_pixel.0 = [pixel.r, pixel.g, pixel.b];
+        i += 1;
+    }
+
+    image
+}
+
+fn get_displays(
+    connection: &RustConnection,
+    screen: usize,
+) -> Result<Vec<Display>, ConnectionError> {
+    let screen = &connection.setup().roots[screen];
     let mut displays: Vec<Display> = vec![];
 
-    for screen in screens {
-        // Literally copied from https://github.com/BoboTiG/python-mss/blob/master/mss/linux.py
-        let crtcs = match connection.randr_get_screen_resources_current(screen.root) {
-            Ok(resources) => {
-                let resources = resources.reply_unchecked()?;
+    // Literally copied from https://github.com/BoboTiG/python-mss/blob/master/mss/linux.py
+    let crtcs = match connection.randr_get_screen_resources_current(screen.root) {
+        Ok(resources) => {
+            resources
+                .reply_unchecked()?
+                .ok_or_else(|| {
+                    ConnectionError::IoError(Error::new(
+                        ErrorKind::NotFound,
+                        "Couldn't get_screen_resources",
+                    ))
+                })?
+                .crtcs
+        }
+        Err(_) => {
+            connection
+                .randr_get_screen_resources(screen.root)?
+                .reply_unchecked()?
+                .ok_or_else(|| {
+                    ConnectionError::IoError(Error::new(
+                        ErrorKind::NotFound,
+                        "Couldn't get_screen_resources",
+                    ))
+                })?
+                .crtcs
+        }
+    };
 
-                match resources {
-                    Some(resources) => {
-                        if resources.crtcs.is_empty() {
-                            continue;
-                        }
-                        resources.crtcs
-                    }
-                    None => continue,
-                }
-            }
-            Err(_) => {
-                let resources = connection
-                    .randr_get_screen_resources(screen.root)?
-                    .reply_unchecked()?;
-
-                match resources {
-                    Some(resources) => {
-                        if resources.crtcs.is_empty() {
-                            continue;
-                        }
-                        resources.crtcs
-                    }
-                    None => continue,
-                }
-            }
-        };
-
-        for crtc in crtcs {
-            if let Some(crtc_info) = connection.randr_get_crtc_info(crtc, 0)?.reply_unchecked()? {
-                displays.push(Display {
-                    top: crtc_info.y.into(),
-                    left: crtc_info.x.into(),
-                    width: crtc_info.width.into(),
-                    height: crtc_info.height.into(),
-                });
-            }
+    for crtc in crtcs {
+        if let Some(crtc_info) = connection.randr_get_crtc_info(crtc, 0)?.reply_unchecked()? {
+            displays.push(Display {
+                top: crtc_info.y.into(),
+                left: crtc_info.x.into(),
+                width: crtc_info.width.into(),
+                height: crtc_info.height.into(),
+            });
         }
     }
 
