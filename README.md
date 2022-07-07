@@ -2,6 +2,8 @@
 
 It's a fairly simple library that performs _good enough_, the OS level APIs that were used are inspired by [python-mss](https://github.com/BoboTiG/python-mss).
 
+PS. [Need Rust, JS, Node, React, VueJS, Flutter or PHP developers? - CrewNew.com](https://crewnew.com)
+
 ## Specification
 
 - **Windows** uses the [Windows GDI](https://docs.microsoft.com/en-us/windows/win32/gdi/windows-gdi) API.
