@@ -20,15 +20,6 @@ use x11rb::{
 
 const PLANE_MASK: u32 = !1;
 
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-struct Bgr {
-    b: u8,
-    g: u8,
-    r: u8,
-    _padding: u8,
-}
-
 pub(crate) struct X11Capturer {
     screen: usize,
     connection: RustConnection,
@@ -114,8 +105,8 @@ impl X11Capturer {
                 root,
                 display.left as i16,
                 display.top as i16,
-                display.width as u16,
-                display.height as u16,
+                display.width,
+                display.height,
                 PLANE_MASK,
             )?
             .reply_unchecked()?
@@ -152,8 +143,8 @@ impl X11Capturer {
                 root,
                 display.left as i16,
                 display.top as i16,
-                display.width as u16,
-                display.height as u16,
+                display.width,
+                display.height,
                 PLANE_MASK,
                 ImageFormat::Z_PIXMAP.into(),
                 unsafe { self.seg.unwrap_unchecked() },
@@ -213,9 +204,9 @@ fn bgr_to_rgb_image(data: &[Bgr], width: u32, height: u32) -> RgbImage {
 
     let mut i = 0;
 
-    for image_pixel in image.pixels_mut() {
-        let pixel = data[i];
-        image_pixel.0 = [pixel.r, pixel.g, pixel.b];
+    for pixel in image.pixels_mut() {
+        let Bgr { r, g, b, .. } = data[i];
+        pixel.0 = [r, g, b];
         i += 1;
     }
 

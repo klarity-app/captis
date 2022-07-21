@@ -12,14 +12,6 @@ const kCGErrorFailure: CGError = 1000;
 
 const kCGErrorIllegalArgument: CGError = 1001;
 
-#[repr(C)]
-struct Pixel {
-    b: u8,
-    g: u8,
-    r: u8,
-    _padding: u8,
-}
-
 pub(crate) struct MacOSCapturer {
     displays: Vec<Display>,
 }
@@ -64,7 +56,7 @@ impl Capturer for MacOSCapturer {
         let bytes = data.bytes();
 
         let pixels =
-            unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const Pixel, bytes.len()) };
+            unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const Bgr, bytes.len()) };
 
         let (width, height) = (cg_image.width(), cg_image.height());
 
@@ -73,7 +65,7 @@ impl Capturer for MacOSCapturer {
         let mut i = 0;
 
         for pixel in image.pixels_mut() {
-            let Pixel { r, g, b, .. } = pixels[i];
+            let Bgr { r, g, b, .. } = pixels[i];
             pixel.0 = [r, g, b];
             i += 1;
         }

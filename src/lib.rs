@@ -4,11 +4,23 @@ mod windows;
 #[cfg(target_os = "windows")]
 pub type Error = windows::WindowsError;
 
+#[cfg(target_os = "windows")]
+pub type CoordinateType = i32;
+
+#[cfg(target_os = "windows")]
+pub type ProportionType = i32;
+
 #[cfg(target_os = "linux")]
 mod linux;
 
 #[cfg(target_os = "linux")]
 pub type Error = x11rb::errors::ConnectionError;
+
+#[cfg(target_os = "linux")]
+pub type CoordinateType = i16;
+
+#[cfg(target_os = "linux")]
+pub type ProportionType = u16;
 
 #[cfg(target_os = "macos")]
 mod macos;
@@ -16,13 +28,22 @@ mod macos;
 #[cfg(target_os = "macos")]
 pub type Error = core_graphics::base::CGError;
 
-#[cfg(not(target_os = "macos"))]
-pub type Number = i32;
+#[cfg(target_os = "macos")]
+pub type CoordinateType = f64;
 
 #[cfg(target_os = "macos")]
-pub type Number = f64;
+pub type ProportionType = f64;
 
 pub use image::RgbImage;
+
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub(crate) struct Bgr {
+    b: u8,
+    g: u8,
+    r: u8,
+    _padding: u8,
+}
 
 pub trait Capturer {
     /// Returns a single image from the selected display.
@@ -35,17 +56,17 @@ pub trait Capturer {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Display {
-    top: Number,
-    left: Number,
-    width: Number,
-    height: Number,
+    top: CoordinateType,
+    left: CoordinateType,
+    width: ProportionType,
+    height: ProportionType,
 }
 
 impl Display {
-    pub fn width(&self) -> Number {
+    pub fn width(&self) -> ProportionType {
         self.width
     }
-    pub fn height(&self) -> Number {
+    pub fn height(&self) -> ProportionType {
         self.height
     }
 }
