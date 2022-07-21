@@ -6,9 +6,9 @@ PS. [Need Rust, JS, Node, React, VueJS, Flutter or PHP developers? - CrewNew.com
 
 ## Specification
 
-- **Windows** uses the [Windows GDI](https://docs.microsoft.com/en-us/windows/win32/gdi/windows-gdi) API.
-- **Linux X11** uses the [RandR](https://www.x.org/wiki/Projects/XRandR/) extension to get information about the displays, for capturing the [XShm](https://www.x.org/releases/X11R7.6/doc/man/man3/XShm.3.xhtml) extension is used if available, otherwise we fallback to the standard protocol.
-- **MacOS** _Coming soon..._
+- **Windows** implementation uses the [Windows GDI](https://docs.microsoft.com/en-us/windows/win32/gdi/windows-gdi) API.
+- **Linux X11** implementation uses the [RandR](https://www.x.org/wiki/Projects/XRandR/) extension to get information about the displays, for capturing the [XShm](https://www.x.org/releases/X11R7.6/doc/man/man3/XShm.3.xhtml) extension is used if available, otherwise we fallback to the standard protocol.
+- **MacOS** implementation uses the [Core Graphics Framework](https://developer.apple.com/documentation/coregraphics?language=objc).
 
 ## Usage
 
@@ -31,4 +31,4 @@ image.save("test.jpeg").expect("Couldn't Save Image");
 
 - [x] Windows
 - [x] Linux (X11)
-- [ ] MacOS
+- [x] MacOS

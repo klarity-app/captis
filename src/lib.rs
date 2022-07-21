@@ -10,6 +10,18 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub type Error = x11rb::errors::ConnectionError;
 
+#[cfg(target_os = "macos")]
+mod macos;
+
+#[cfg(target_os = "macos")]
+pub type Error = core_graphics::base::CGError;
+
+#[cfg(not(target_os = "macos"))]
+pub type Number = i32;
+
+#[cfg(target_os = "macos")]
+pub type Number = f64;
+
 pub use image::RgbImage;
 
 pub trait Capturer {
@@ -21,19 +33,19 @@ pub trait Capturer {
     fn displays(&self) -> &[Display];
 }
 
-#[derive(Debug, Copy, Clone, Hash)]
+#[derive(Debug, Copy, Clone)]
 pub struct Display {
-    top: i32,
-    left: i32,
-    width: i32,
-    height: i32,
+    top: Number,
+    left: Number,
+    width: Number,
+    height: Number,
 }
 
 impl Display {
-    pub fn width(&self) -> i32 {
+    pub fn width(&self) -> Number {
         self.width
     }
-    pub fn height(&self) -> i32 {
+    pub fn height(&self) -> Number {
         self.height
     }
 }
@@ -48,4 +60,10 @@ pub fn init_capturer() -> Result<impl Capturer, Error> {
 pub fn init_capturer() -> Result<impl Capturer, Error> {
     use linux::*;
     Ok(X11Capturer::new()?)
+}
+
+#[cfg(target_os = "macos")]
+pub fn init_capturer() -> Result<impl Capturer, Error> {
+    use macos::*;
+    Ok(MacOSCapturer::new()?)
 }
