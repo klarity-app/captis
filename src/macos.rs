@@ -7,23 +7,41 @@ use core_graphics::{
     display::{kCGWindowListOptionAll, CGDisplay, CGRect},
     geometry::{CGPoint, CGSize},
 };
+use std::{error::Error, fmt};
 
-const kCGErrorFailure: CGError = 1000;
+#[derive(Debug, Copy, Clone)]
+pub enum MacOSError {
+    CoreGraphicsError(CGError),
+    CouldntFindDisplay,
+    CouldntScreenshot,
+}
 
-const kCGErrorIllegalArgument: CGError = 1001;
+impl From<i32> for MacOSError {
+    fn from(number: i32) -> Self {
+        Self::CoreGraphicsError(number)
+    }
+}
+
+impl fmt::Display for MacOSError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for MacOSError {}
 
 pub(crate) struct MacOSCapturer {
     displays: Vec<Display>,
 }
 
 impl MacOSCapturer {
-    pub(crate) fn new() -> Result<Self, CGError> {
+    pub(crate) fn new() -> Result<Self, MacOSError> {
         Ok(Self {
             displays: Self::get_displays()?,
         })
     }
 
-    fn get_displays() -> Result<Vec<Display>, CGError> {
+    fn get_displays() -> Result<Vec<Display>, MacOSError> {
         let active_displays = CGDisplay::active_displays()?;
         let mut displays: Vec<Display> = Vec::with_capacity(active_displays.len());
         for display_id in active_displays {
@@ -45,11 +63,13 @@ impl MacOSCapturer {
 }
 
 impl Capturer for MacOSCapturer {
-    fn capture(&self, index: usize) -> Result<RgbImage, CGError> {
-        let display = *self.displays.get(index).ok_or(kCGErrorIllegalArgument)?;
+    fn capture(&self, index: usize) -> Result<RgbImage, MacOSError> {
+        use MacOSError::*;
+
+        let display = *self.displays.get(index).ok_or(CouldntFindDisplay)?;
 
         let cg_image = CGDisplay::screenshot(display.into(), kCGWindowListOptionAll, 0, 0)
-            .ok_or(kCGErrorFailure)?;
+            .ok_or(CouldntScreenshot)?;
 
         let data = cg_image.data();
 
@@ -72,7 +92,7 @@ impl Capturer for MacOSCapturer {
 
         Ok(image)
     }
-    fn capture_all(&self) -> Result<Vec<RgbImage>, CGError> {
+    fn capture_all(&self) -> Result<Vec<RgbImage>, MacOSError> {
         let mut vec: Vec<RgbImage> = Vec::with_capacity(self.displays.len());
         for (i, _) in self.displays.iter().enumerate() {
             vec.push(self.capture(i)?);

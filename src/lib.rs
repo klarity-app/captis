@@ -26,7 +26,7 @@ pub type ProportionType = u16;
 mod macos;
 
 #[cfg(target_os = "macos")]
-pub type Error = core_graphics::base::CGError;
+pub type Error = macos::MacOSError;
 
 #[cfg(target_os = "macos")]
 pub type CoordinateType = f64;
