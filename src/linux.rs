@@ -24,6 +24,7 @@ pub(crate) struct X11Capturer {
     screen: usize,
     connection: RustConnection,
     displays: Vec<Display>,
+    primary_display_index: usize,
     shm_addr: *const u8,
     shm_id: Option<i32>,
     seg: Option<u32>,
@@ -75,9 +76,12 @@ impl X11Capturer {
             }
         };
 
+        let (primary_display_index, displays) = get_displays(&connection, screen)?;
+
         Ok(X11Capturer {
             screen,
-            displays: get_displays(&connection, screen)?,
+            displays,
+            primary_display_index,
             connection,
             shm_addr,
             shm_id,
@@ -186,6 +190,10 @@ impl Capturer for X11Capturer {
         Ok(image)
     }
 
+    fn capture_primary(&self) -> Result<RgbImage, ConnectionError> {
+        Ok(self.capture(self.primary_display_index)?)
+    }
+
     fn capture_all(&self) -> Result<Vec<RgbImage>, ConnectionError> {
         let mut vec = vec![];
         for i in 0..self.displays.len() {
@@ -216,8 +224,9 @@ fn bgr_to_rgb_image(data: &[Bgr], width: u32, height: u32) -> RgbImage {
 fn get_displays(
     connection: &RustConnection,
     screen: usize,
-) -> Result<Vec<Display>, ConnectionError> {
+) -> Result<(usize, Vec<Display>), ConnectionError> {
     let screen = &connection.setup().roots[screen];
+    let mut primary_display_index = 0;
     let mut displays: Vec<Display> = vec![];
 
     // Literally copied from https://github.com/BoboTiG/python-mss/blob/master/mss/linux.py
@@ -249,14 +258,18 @@ fn get_displays(
 
     for crtc in crtcs {
         if let Some(crtc_info) = connection.randr_get_crtc_info(crtc, 0)?.reply_unchecked()? {
-            displays.push(Display {
+            let display = Display {
                 top: crtc_info.y.into(),
                 left: crtc_info.x.into(),
                 width: crtc_info.width.into(),
                 height: crtc_info.height.into(),
-            });
+            };
+            if display.top == 0 && display.left == 0 {
+                primary_display_index = displays.len();
+            }
+            displays.push(display);
         }
     }
 
-    Ok(displays)
+    Ok((primary_display_index, displays))
 }

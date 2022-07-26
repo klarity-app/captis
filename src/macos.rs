@@ -32,18 +32,26 @@ impl Error for MacOSError {}
 
 pub(crate) struct MacOSCapturer {
     displays: Vec<Display>,
+    primary_display_index: usize,
 }
 
 impl MacOSCapturer {
     pub(crate) fn new() -> Result<Self, MacOSError> {
+        let (primary_display_index, displays) = Self::get_displays()?;
+
         Ok(Self {
-            displays: Self::get_displays()?,
+            displays,
+            primary_display_index,
         })
     }
 
-    fn get_displays() -> Result<Vec<Display>, MacOSError> {
+    fn get_displays() -> Result<(usize, Vec<Display>), MacOSError> {
         let active_displays = CGDisplay::active_displays()?;
+
+        let mut primary_display_index = 0;
+
         let mut displays: Vec<Display> = Vec::with_capacity(active_displays.len());
+
         for display_id in active_displays {
             let display = CGDisplay::new(display_id);
             let mut cg_rect = display.bounds();
@@ -56,9 +64,16 @@ impl MacOSCapturer {
                 cg_rect.size.height = width;
             }
 
-            displays.push(cg_rect.into())
+            let display: Display = cg_rect.into();
+
+            if display.top == 0.0 && display.left == 0.0 {
+                primary_display_index = displays.len();
+            }
+
+            displays.push(display);
         }
-        Ok(displays)
+
+        Ok((primary_display_index, displays))
     }
 }
 
@@ -92,6 +107,11 @@ impl Capturer for MacOSCapturer {
 
         Ok(image)
     }
+
+    fn capture_primary(&self) -> Result<RgbImage, MacOSError> {
+        Ok(self.capture(self.primary_display_index)?)
+    }
+
     fn capture_all(&self) -> Result<Vec<RgbImage>, MacOSError> {
         let mut vec: Vec<RgbImage> = Vec::with_capacity(self.displays.len());
         for (i, _) in self.displays.iter().enumerate() {
@@ -99,6 +119,7 @@ impl Capturer for MacOSCapturer {
         }
         Ok(vec)
     }
+
     fn displays(&self) -> &[Display] {
         &self.displays
     }

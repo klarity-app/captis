@@ -48,6 +48,8 @@ pub(crate) struct Bgr {
 pub trait Capturer {
     /// Returns a single image from the selected display.
     fn capture(&self, index: usize) -> Result<RgbImage, Error>;
+    /// Captures a single image from the primary display.
+    fn capture_primary(&self) -> Result<RgbImage, Error>;
     /// Captures a single image from all the displays available and returns them.
     fn capture_all(&self) -> Result<Vec<RgbImage>, Error>;
     /// Returns a reference to the currently available displays.

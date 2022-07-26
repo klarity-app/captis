@@ -44,6 +44,7 @@ pub(crate) struct WindowsCapturer {
     h_dc: HDC,
     h_compatible_dc: HDC,
     displays: Vec<Display>,
+    primary_display_index: usize,
     bits_per_pixel: u16,
     _phantom_data: PhantomData<*const ()>,
 }
@@ -60,6 +61,10 @@ impl Drop for WindowsCapturer {
 impl Capturer for WindowsCapturer {
     fn displays<'a>(&self) -> &[Display] {
         &self.displays
+    }
+
+    fn capture_primary(&self) -> Result<RgbImage, WindowsError> {
+        Ok(self.capture(self.primary_display_index)?)
     }
 
     fn capture_all(&self) -> Result<Vec<RgbImage>, WindowsError> {
@@ -167,9 +172,9 @@ impl WindowsCapturer {
         use WindowsError::*;
 
         unsafe {
-            let mut displays: Vec<Display> = vec![];
-
             let h_dc = GetWindowDC(ptr::null_mut());
+
+            let (primary_display_index, displays) = get_displays(h_dc)?;
 
             if h_dc.is_null() {
                 return Err(CouldntGetWindowDC);
@@ -183,16 +188,6 @@ impl WindowsCapturer {
 
             let bits_per_pixel = GetDeviceCaps(h_dc, BITSPIXEL) as u16;
 
-            if EnumDisplayMonitors(
-                h_dc,
-                ptr::null_mut(),
-                Some(enum_display_callback),
-                (&mut displays as *mut _) as _,
-            ) == 0
-            {
-                return Err(CouldntEnumDisplayMonitors);
-            }
-
             if displays.is_empty() {
                 return Err(CouldntFindAnyDisplays);
             }
@@ -201,10 +196,40 @@ impl WindowsCapturer {
                 h_dc,
                 h_compatible_dc,
                 displays,
+                primary_display_index,
                 bits_per_pixel,
                 _phantom_data: PhantomData,
             })
         }
+    }
+}
+
+fn get_displays(h_dc: HDC) -> Result<(usize, Vec<Display>), WindowsError> {
+    use WindowsError::*;
+
+    unsafe {
+        let mut displays: Vec<Display> = vec![];
+
+        if EnumDisplayMonitors(
+            h_dc,
+            ptr::null_mut(),
+            Some(enum_display_callback),
+            (&mut displays as *mut _) as _,
+        ) == 0
+        {
+            return Err(CouldntEnumDisplayMonitors);
+        }
+
+        if displays.is_empty() {
+            return Err(CouldntFindAnyDisplays);
+        }
+
+        let primary_display_index = displays
+            .iter()
+            .position(|display| display.top == 0 && display.left == 0)
+            .unwrap_unchecked();
+
+        Ok((primary_display_index, displays))
     }
 }
 
