@@ -59,8 +59,15 @@ impl Drop for WindowsCapturer {
 }
 
 impl Capturer for WindowsCapturer {
-    fn displays<'a>(&self) -> &[Display] {
+    fn displays(&self) -> &[Display] {
         &self.displays
+    }
+
+    fn refresh_displays(&mut self) -> Result<(), WindowsError> {
+        let (primary_display_index, displays) = get_displays(self.h_dc)?;
+        self.primary_display_index = primary_display_index;
+        self.displays = displays;
+        Ok(())
     }
 
     fn capture_primary(&self) -> Result<RgbImage, WindowsError> {

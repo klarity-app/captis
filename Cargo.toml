@@ -8,7 +8,7 @@ description = "A Screen capturing library built for Linux, Windows and MacOS."
 readme = "README.md"
 homepage = "https://github.com/crewnew/captis"
 license = "MIT"
-keywords = ["screen", "capture", "screenshot"]
+keywords = ["screenshot", "screen", "capture"]
 categories = ["computer-vision", "multimedia::images"]
 documentation = "https://docs.rs/captis"
 

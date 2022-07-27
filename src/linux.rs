@@ -205,6 +205,13 @@ impl Capturer for X11Capturer {
     fn displays(&self) -> &[Display] {
         &self.displays
     }
+
+    fn refresh_displays(&mut self) -> Result<(), ConnectionError> {
+        let (primary_display_index, displays) = get_displays(&self.connection, self.screen)?;
+        self.primary_display_index = primary_display_index;
+        self.displays = displays;
+        Ok(())
+    }
 }
 
 fn bgr_to_rgb_image(data: &[Bgr], width: u32, height: u32) -> RgbImage {

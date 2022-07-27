@@ -32,23 +32,17 @@ impl Error for MacOSError {}
 
 pub(crate) struct MacOSCapturer {
     displays: Vec<Display>,
-    primary_display_index: usize,
 }
 
 impl MacOSCapturer {
     pub(crate) fn new() -> Result<Self, MacOSError> {
-        let (primary_display_index, displays) = Self::get_displays()?;
+        let displays = Self::get_displays()?;
 
-        Ok(Self {
-            displays,
-            primary_display_index,
-        })
+        Ok(Self { displays })
     }
 
-    fn get_displays() -> Result<(usize, Vec<Display>), MacOSError> {
+    fn get_displays() -> Result<Vec<Display>, MacOSError> {
         let active_displays = CGDisplay::active_displays()?;
-
-        let mut primary_display_index = 0;
 
         let mut displays: Vec<Display> = Vec::with_capacity(active_displays.len());
 
@@ -64,16 +58,10 @@ impl MacOSCapturer {
                 cg_rect.size.height = width;
             }
 
-            let display: Display = cg_rect.into();
-
-            if display.top == 0.0 && display.left == 0.0 {
-                primary_display_index = displays.len();
-            }
-
-            displays.push(display);
+            displays.push(cg_rect.into());
         }
 
-        Ok((primary_display_index, displays))
+        Ok(displays)
     }
 }
 
@@ -109,7 +97,7 @@ impl Capturer for MacOSCapturer {
     }
 
     fn capture_primary(&self) -> Result<RgbImage, MacOSError> {
-        Ok(self.capture(self.primary_display_index)?)
+        Ok(self.capture(0)?)
     }
 
     fn capture_all(&self) -> Result<Vec<RgbImage>, MacOSError> {
@@ -122,6 +110,11 @@ impl Capturer for MacOSCapturer {
 
     fn displays(&self) -> &[Display] {
         &self.displays
+    }
+
+    fn refresh_displays(&mut self) -> Result<(), MacOSError> {
+        self.displays = Self::get_displays()?;
+        Ok(())
     }
 }
 

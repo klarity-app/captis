@@ -54,6 +54,8 @@ pub trait Capturer {
     fn capture_all(&self) -> Result<Vec<RgbImage>, Error>;
     /// Returns a reference to the currently available displays.
     fn displays(&self) -> &[Display];
+    /// Refreshes the current displays.
+    fn refresh_displays(&mut self) -> Result<(), Error>;
 }
 
 #[derive(Debug, Copy, Clone)]
