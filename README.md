@@ -30,3 +30,5 @@ image.save("test.jpeg").expect("Couldn't Save Image");
 - [x] Windows
 - [x] Linux (X11)
 - [x] MacOS
+
+If any help needed feel free to contact rust@crnw.uk
