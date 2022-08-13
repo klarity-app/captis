@@ -2,7 +2,10 @@
 mod windows;
 
 #[cfg(target_os = "windows")]
-pub type Error = windows::WindowsError;
+pub use windows::WindowsError;
+
+#[cfg(target_os = "windows")]
+pub type Error = WindowsError;
 
 #[cfg(target_os = "windows")]
 pub type CoordinateType = i32;
@@ -12,6 +15,9 @@ pub type ProportionType = i32;
 
 #[cfg(target_os = "linux")]
 mod linux;
+
+#[cfg(target_os = "linux")]
+pub use x11rb;
 
 #[cfg(target_os = "linux")]
 pub type Error = x11rb::errors::ConnectionError;
@@ -26,7 +32,10 @@ pub type ProportionType = u16;
 mod macos;
 
 #[cfg(target_os = "macos")]
-pub type Error = macos::MacOSError;
+pub use macos::MacOSError;
+
+#[cfg(target_os = "macos")]
+pub type Error = MacOSError;
 
 #[cfg(target_os = "macos")]
 pub type CoordinateType = f64;
