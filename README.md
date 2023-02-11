@@ -15,7 +15,7 @@ To run this code you also need to add [image](https://lib.rs/image) crate to you
 The same goes for any other format as well, if you wanna treat the image as **PNG** you must enable **png** feature. Check their [documentation](https://docs.rs/image/latest/image/enum.ImageFormat.html) to see which formats are available.
 
 ```rust
-use captis::init_capturer;
+use captis::{init_capturer, Capturer};
 
 let capturer = init_capturer().expect("Couldn't Initialize Capturer");
 
